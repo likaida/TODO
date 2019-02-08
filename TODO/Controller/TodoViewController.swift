@@ -9,28 +9,12 @@
 import UIKit
 
 class TodoViewController: UITableViewController {
-    var itemArray = [ItemDataModel]()
-    let defaults = UserDefaults.standard
+    var itemArray :[ItemDataModel] = [ItemDataModel]()
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Item.plist")
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        let newItem = ItemDataModel()
-        newItem.title = "111"
-        itemArray.append(newItem)
-        
-        let newItem2 = ItemDataModel()
-        newItem2.title = "222"
-        itemArray.append(newItem2)
-        
-        let newItem3 = ItemDataModel()
-        newItem3.title = "333"
-        itemArray.append(newItem3)
-        for index in 4...100 {
-            let newItem = ItemDataModel()
-            newItem.title = "第条\(index)事物"
-            itemArray.append(newItem)
-        }
+        loadItems()
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -38,7 +22,6 @@ class TodoViewController: UITableViewController {
         let item = itemArray[indexPath.row]
         cell.textLabel?.text = item.title
         cell.accessoryType = item.done ? .checkmark : .none
-        
         return cell
     }
     
@@ -47,20 +30,14 @@ class TodoViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print(indexPath.row)
-        if itemArray[indexPath.row].done==false{
-            itemArray[indexPath.row].done = true
-        }else{
-            itemArray[indexPath.row].done = false
-        }
+        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         tableView.beginUpdates()
         tableView.reloadRows(at: [indexPath], with: .none)
         tableView.endUpdates()
+        saveItem()
         tableView.deselectRow(at: indexPath, animated: true)
-        
     }
-
-
+    
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         var textField = UITextField()
         
@@ -70,7 +47,7 @@ class TodoViewController: UITableViewController {
             let item = ItemDataModel()
             item.title = textField.text!
             self.itemArray.append(item)
-            self.defaults.set(self.itemArray, forKey: "TodoListArray")
+            self.saveItem()
             self.tableView.reloadData()
         }
         alert.addTextField{
@@ -81,6 +58,28 @@ class TodoViewController: UITableViewController {
         
         alert.addAction(action)
         self.present(alert, animated: true, completion: nil)
+        
+    }
+    
+    func saveItem() {
+        let encoder = PropertyListEncoder()
+        do {
+            let data = try encoder.encode(itemArray)
+            try data.write(to: dataFilePath!)
+        }catch {
+            print("错误代码\(error)")
+        }
+    }
+    
+    func loadItems() {
+        if let data = try? Data(contentsOf: dataFilePath!) {
+            let decoder = PropertyListDecoder()
+            do{
+                itemArray = try decoder.decode([ItemDataModel].self, from: data)
+            }catch{
+                print("解码Item错误\(error)")
+            }
+        }
         
     }
 }
