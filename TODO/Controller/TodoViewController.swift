@@ -7,10 +7,12 @@
 //
 
 import UIKit
+import CoreData
 
 class TodoViewController: UITableViewController {
-    var itemArray :[ItemDataModel] = [ItemDataModel]()
+    var itemArray :[Item] = [Item]()
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Item.plist")
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -44,11 +46,11 @@ class TodoViewController: UITableViewController {
         let alert = UIAlertController(title: "添加一个新的TODO项目", message: "", preferredStyle: .alert)
         let action = UIAlertAction(title: "添加项目", style: .default){
             action in
-            let item = ItemDataModel()
+            let item = Item(context: self.context)
             item.title = textField.text!
+            item.done = false
             self.itemArray.append(item)
             self.saveItem()
-            self.tableView.reloadData()
         }
         alert.addTextField{
             alertTextField in
@@ -62,25 +64,37 @@ class TodoViewController: UITableViewController {
     }
     
     func saveItem() {
-        let encoder = PropertyListEncoder()
-        do {
-            let data = try encoder.encode(itemArray)
-            try data.write(to: dataFilePath!)
-        }catch {
-            print("错误代码\(error)")
+        do{
+            try context.save()
+        }catch{
+            print("save error\(error)")
         }
+        tableView.reloadData()
     }
     
-    func loadItems() {
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            do{
-                itemArray = try decoder.decode([ItemDataModel].self, from: data)
-            }catch{
-                print("解码Item错误\(error)")
-            }
+    func loadItems(with request : NSFetchRequest<Item> = Item.fetchRequest()) {
+        do{
+            itemArray = try context.fetch(request)
+        }catch{
+            print("读取错误:\(error)")
         }
-        
+        tableView.reloadData()
     }
 }
+extension TodoViewController : UISearchBarDelegate{
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        let request : NSFetchRequest<Item> = Item.fetchRequest()
 
+        request.predicate = NSPredicate(format: "tiele CONTAINS[c] %@", searchBar.text!)
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        loadItems(with: request)
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0{
+            loadItems()
+            searchBar.resignFirstResponder()
+        }
+    }
+}
